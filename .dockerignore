@@ -1,0 +1,13 @@
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/bilancio.db
+backend/backups/
+backend/uploads/
+backend/tessdata/
+backend/backend.log
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+**/.git
+**/.DS_Store

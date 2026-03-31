@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  bilancio:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - bilancio_data:/data
+    restart: unless-stopped
+
+volumes:
+  bilancio_data:
