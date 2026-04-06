@@ -91,6 +91,15 @@ class YearSummary(BaseModel):
     risparmio: float
 
 
+class OcrTransactionItem(BaseModel):
+    description: str
+    amount: float
+    year: int
+    month: int
+    proposed_category: str
+    confidence: float
+
+
 class OcrResult(BaseModel):
     raw_text: str
     amount: Optional[float]
@@ -100,6 +109,8 @@ class OcrResult(BaseModel):
     confidence: float
     year_hint: Optional[int]
     month_hint: Optional[int]
+    mode: str = "single"  # "single" | "multi"
+    transactions: Optional[list[OcrTransactionItem]] = None
 
 
 class CategoryCreate(BaseModel):

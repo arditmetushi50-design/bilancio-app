@@ -48,25 +48,36 @@ export default function Dashboard() {
     name: MESI[i],
     Entrate: m.total_entrate,
     Uscite: Math.abs(m.total_uscite),
-    Risparmio: m.risparmio,
+    Saldo: m.risparmio,
   })) ?? [];
 
-  // Aggregate category spending across the year for donut chart
-  const categoryTotals: Record<string, number> = {};
+  // Aggregate category totals across the year for donut chart
+  const expenseTotals: Record<string, number> = {};
+  const incomeTotals: Record<string, number> = {};
   if (summary) {
     for (const month of summary.months) {
       if (month.by_category) {
         for (const [cat, amount] of Object.entries(month.by_category)) {
-          const absAmt = Math.abs(amount);
-          if (absAmt > 0 && amount < 0) {
-            categoryTotals[cat] = (categoryTotals[cat] ?? 0) + absAmt;
+          if (amount < 0) {
+            expenseTotals[cat] = (expenseTotals[cat] ?? 0) + Math.abs(amount);
+          } else if (amount > 0) {
+            incomeTotals[cat] = (incomeTotals[cat] ?? 0) + amount;
           }
         }
       }
     }
   }
 
-  const donutData = Object.entries(categoryTotals)
+  const donutData = Object.entries(expenseTotals)
+    .filter(([, val]) => val > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, value]) => ({
+      name,
+      value: Math.round(value * 100) / 100,
+      meta: getCategoryMeta(name),
+    }));
+
+  const incomeData = Object.entries(incomeTotals)
     .filter(([, val]) => val > 0)
     .sort((a, b) => b[1] - a[1])
     .map(([name, value]) => ({
@@ -95,7 +106,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-xs opacity-75 mb-1">Risparmio</p>
+              <p className="text-xs opacity-75 mb-1">{curMonth.risparmio >= 0 ? "Risparmio" : "Deficit"}</p>
               <p className={`text-xl font-bold ${curMonth.risparmio >= 0 ? "text-green-200" : "text-red-200"}`}>
                 {fmt(curMonth.risparmio)}
               </p>
@@ -160,7 +171,7 @@ export default function Dashboard() {
             </div>
             <div className={`card border-l-4 p-3 md:p-4 ${summary.risparmio >= 0 ? "border-l-blue-500" : "border-l-orange-500"}`}>
               <p className="text-xs text-gray-500 font-medium uppercase tracking-wide leading-tight">
-                Risparmio
+                {summary.risparmio >= 0 ? "Risparmio" : "Deficit"}
               </p>
               <p className={`text-sm md:text-2xl font-bold mt-1 ${summary.risparmio >= 0 ? "text-blue-600" : "text-orange-600"}`}>
                 {fmt(summary.risparmio)}
@@ -180,15 +191,25 @@ export default function Dashboard() {
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="Entrate" fill="#16a34a" radius={[2, 2, 0, 0]} />
                 <Bar dataKey="Uscite" fill="#dc2626" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="Risparmio" fill="#0284c7" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="Saldo" radius={[2, 2, 0, 0]}
+                  fill="#0284c7"
+                  label={false}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell
+                      key={`saldo-${index}`}
+                      fill={entry.Saldo >= 0 ? "#0284c7" : "#f97316"}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Donut Chart - Expense Distribution */}
-          {donutData.length > 0 && (
+          {/* Donut Chart - Distribution */}
+          {(donutData.length > 0 || incomeData.length > 0) && (
             <div className="card mb-4">
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Distribuzione spese {selectedYear}</h2>
+              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Distribuzione {selectedYear}</h2>
               <div className="flex flex-col md:flex-row items-center gap-4">
                 <ResponsiveContainer width="100%" height={220} className="md:max-w-[280px]">
                   <PieChart>
@@ -205,37 +226,64 @@ export default function Dashboard() {
                         <Cell key={idx} fill={entry.meta.hex} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      formatter={(value) => fmt(Number(value))}
-                    />
+                    <Tooltip formatter={(value) => fmt(Number(value))} />
                   </PieChart>
                 </ResponsiveContainer>
 
-                {/* Legend */}
-                <div className="flex-1 w-full">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {donutData.map((d) => {
-                      const pct = totalExpenses > 0 ? ((d.value / totalExpenses) * 100).toFixed(1) : "0";
-                      return (
-                        <div key={d.name} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <span className="text-base">{d.meta.icon}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{d.name}</p>
-                            <div className="flex items-center gap-1.5">
-                              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{ width: `${pct}%`, backgroundColor: d.meta.hex }}
-                                />
+                {/* Legend — income + expense */}
+                <div className="flex-1 w-full space-y-3">
+                  {/* Income section */}
+                  {incomeData.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-green-600 mb-1.5">▲ Entrate</p>
+                      <div className="space-y-0.5">
+                        {incomeData.map((d) => (
+                          <Link
+                            key={d.name}
+                            to={`/anno/${selectedYear}?cat=${encodeURIComponent(d.name)}`}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                          >
+                            <span className="text-base">{d.meta.icon}</span>
+                            <span className="flex-1 text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{d.name}</span>
+                            <span className="text-xs font-semibold text-green-600">{fmt(d.value)}</span>
+                            <span className="text-gray-300 text-xs">›</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expense section */}
+                  {donutData.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-red-500 mb-1.5">▼ Uscite</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-0.5">
+                        {donutData.map((d) => {
+                          const pct = totalExpenses > 0 ? ((d.value / totalExpenses) * 100).toFixed(1) : "0";
+                          return (
+                            <Link
+                              key={d.name}
+                              to={`/anno/${selectedYear}?cat=${encodeURIComponent(d.name)}`}
+                              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <span className="text-base">{d.meta.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{d.name}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: d.meta.hex }} />
+                                  </div>
+                                  <span className="text-[10px] text-gray-500 font-medium w-8 text-right">{pct}%</span>
+                                </div>
                               </div>
-                              <span className="text-[10px] text-gray-500 font-medium w-8 text-right">{pct}%</span>
-                            </div>
-                          </div>
-                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{fmt(d.value)}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{fmt(d.value)}</span>
+                              <span className="text-gray-300 text-xs">›</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

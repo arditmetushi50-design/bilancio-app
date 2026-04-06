@@ -26,7 +26,7 @@ interface BudgetItem {
   monthly_limit: number;
   spent: number;
   remaining: number;
-  percentage: number;
+  percent: number;
 }
 
 export default function MesePage() {
@@ -300,8 +300,8 @@ export default function MesePage() {
           <div className="space-y-3">
             {budgetItems.map((b) => {
               const meta = getCategoryMeta(b.category_name);
-              const pct = Math.min(100, b.percentage);
-              const isOver = b.percentage > 100;
+              const pct = Math.min(100, b.percent);
+              const isOver = b.percent > 100;
               return (
                 <div key={b.category_id}>
                   <div className="flex items-center justify-between mb-1">

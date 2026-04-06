@@ -2,6 +2,26 @@ import { NavLink, Outlet } from "react-router-dom";
 import QuickAdd from "./QuickAdd";
 import SearchBar from "./SearchBar";
 
+const GIORNI = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+const MESI_IT = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+
+function TodayBadge() {
+  const now = new Date();
+  const giorno = GIORNI[now.getDay()];
+  const data = `${String(now.getDate()).padStart(2,"0")} ${MESI_IT[now.getMonth()]} ${now.getFullYear()}`;
+  return (
+    <div className="px-3 mb-3 mt-1">
+      <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-1.5">
+        <span className="text-base">📅</span>
+        <div>
+          <p className="text-[10px] text-blue-400 font-medium uppercase tracking-wide leading-none">{giorno}</p>
+          <p className="text-xs font-bold text-blue-700 dark:text-blue-300 leading-tight">{data}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const navItems = [
   { to: "/", label: "Home", icon: "🏠" },
   { to: "/ocr", label: "Foto", icon: "📷" },
@@ -13,8 +33,8 @@ const navItems = [
 const desktopExtraItems = [
   { to: "/tabella", label: "Tabella Annuale", icon: "📊" },
   { to: "/trend", label: "Trend Spese", icon: "📉" },
+  { to: "/recurring", label: "Ricorrenti", icon: "🔁" },
   { to: "/import", label: "Importa Excel", icon: "📂" },
-  { to: "/budget", label: "Budget", icon: "💰" },
   { to: "/settings", label: "Impostazioni", icon: "⚙️" },
 ];
 
@@ -28,6 +48,10 @@ export default function Layout() {
           <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">Bilancio</h1>
           <p className="text-xs text-gray-400">Gestione Personale</p>
         </div>
+        <div className="text-right mr-1">
+          <p className="text-[10px] text-blue-400 font-medium leading-none">{GIORNI[new Date().getDay()]}</p>
+          <p className="text-xs font-bold text-blue-600 dark:text-blue-400">{`${String(new Date().getDate()).padStart(2,"0")} ${MESI_IT[new Date().getMonth()]} ${new Date().getFullYear()}`}</p>
+        </div>
         <SearchBar variant="mobile" />
       </header>
 
@@ -38,6 +62,8 @@ export default function Layout() {
             <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">💰 Bilancio</h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Gestione Personale</p>
           </div>
+
+          <TodayBadge />
 
           <div className="px-1 mb-4">
             <SearchBar variant="desktop" />

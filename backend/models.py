@@ -85,6 +85,15 @@ class RecurringTransaction(Base):
     created_at = Column(DateTime, default=func.now())
 
 
+class DismissedSuggestion(Base):
+    __tablename__ = "dismissed_suggestions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    normalized_description = Column(String, nullable=False, index=True)
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
+    created_at = Column(DateTime, default=func.now())
+
+
 class BudgetLimit(Base):
     __tablename__ = "budget_limits"
 

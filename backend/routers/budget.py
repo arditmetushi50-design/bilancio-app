@@ -86,11 +86,11 @@ def budget_status(year: int, month: int, db: Session = Depends(get_db)):
 
         result.append({
             "category_id": bl.category_id,
-            "category": cat.name,
-            "limit": bl.monthly_limit,
+            "category_name": cat.name,
+            "monthly_limit": bl.monthly_limit,
             "spent": spent,
             "remaining": remaining,
-            "percentage": percentage,
+            "percent": percentage,
         })
 
     return result

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { getYearSummary, YearSummary } from "../api/client";
+import { useParams, Link, useSearchParams } from "react-router-dom";
+import { getYearSummary, getCategories, getMovimenti, deleteMovimento, YearSummary, Transaction } from "../api/client";
+import { getCategoryMeta } from "../utils/categories";
+import { useToast } from "../components/Toast";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const MESI = ["", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
@@ -13,14 +15,47 @@ function fmt(n: number) {
   return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(n);
 }
 
+const MESI_NOMI = ["", "Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
+
 export default function AnnoPage() {
   const { year } = useParams<{ year: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const y = Number(year);
+  const { showToast } = useToast();
+  const catFilter = searchParams.get("cat");
+
   const [summary, setSummary] = useState<YearSummary | null>(null);
+  const [catTransactions, setCatTransactions] = useState<Transaction[]>([]);
+  const [catLoading, setCatLoading] = useState(false);
 
   useEffect(() => {
     getYearSummary(y).then(setSummary);
   }, [y]);
+
+  useEffect(() => {
+    if (!catFilter) { setCatTransactions([]); return; }
+    setCatLoading(true);
+    getCategories()
+      .then(cats => {
+        const found = cats.find(c => c.name.toUpperCase() === catFilter.toUpperCase());
+        if (!found) { setCatLoading(false); return; }
+        return getMovimenti(y, undefined, found.id);
+      })
+      .then(txs => { if (txs) setCatTransactions(txs); })
+      .catch(() => {})
+      .finally(() => setCatLoading(false));
+  }, [catFilter, y]);
+
+  const handleDeleteTx = async (id: number) => {
+    if (!confirm("Eliminare questa transazione?")) return;
+    try {
+      await deleteMovimento(id);
+      setCatTransactions(prev => prev.filter(t => t.id !== id));
+      showToast("Transazione eliminata");
+    } catch {
+      showToast("Errore nell'eliminazione", "error");
+    }
+  };
 
   if (!summary) return <div className="text-gray-400 dark:text-gray-500 py-10 text-center">Caricamento...</div>;
 
@@ -43,6 +78,70 @@ export default function AnnoPage() {
         <Link to="/" className="text-blue-600 hover:underline text-sm">← Dashboard</Link>
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Bilancio {y}</h1>
       </div>
+
+      {/* Category filter panel */}
+      {catFilter && (
+        <div className="card mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{getCategoryMeta(catFilter).icon}</span>
+              <div>
+                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{catFilter}</h2>
+                <p className="text-xs text-gray-500">{catTransactions.length} transazioni nel {y}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSearchParams({})}
+              className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              ✕ Chiudi
+            </button>
+          </div>
+          {catLoading ? (
+            <p className="text-sm text-gray-400 py-4 text-center">Caricamento...</p>
+          ) : catTransactions.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">Nessuna transazione trovata</p>
+          ) : (
+            <div className="space-y-0.5 max-h-96 overflow-y-auto">
+              {catTransactions.map(tx => (
+                  <div key={tx.id} className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 group">
+                    <span className="text-xs text-gray-400 w-12 shrink-0">
+                      {MESI_NOMI[tx.month]}
+                    </span>
+                    <span className="flex-1 text-xs text-gray-700 dark:text-gray-200 truncate">{tx.description}</span>
+                    <span className={`text-xs font-semibold ${tx.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(tx.amount)}
+                    </span>
+                    <Link
+                      to={`/anno/${y}/mese/${tx.month}`}
+                      className="text-[10px] text-blue-500 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity px-1"
+                      title="Vai al mese"
+                    >
+                      ✏️
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteTx(tx.id)}
+                      className="text-[10px] text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity px-1"
+                      title="Elimina"
+                    >
+                      🗑
+                    </button>
+                  </div>
+              ))}
+            </div>
+          )}
+          {catTransactions.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-between text-xs">
+              <span className="text-gray-500">Totale {y}</span>
+              <span className={`font-bold ${catTransactions.reduce((s, t) => s + t.amount, 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(
+                  catTransactions.reduce((s, t) => s + t.amount, 0)
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Totali anno */}
       <div className="grid grid-cols-3 gap-4 mb-6">

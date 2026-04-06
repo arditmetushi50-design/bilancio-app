@@ -7,15 +7,20 @@ from typing import Optional, Tuple
 
 # Regole base: (keyword_pattern, categoria, priorità)
 BASE_RULES: list[tuple[str, str, int]] = [
-    # STIPENDIO (alta priorità)
+    # STIPENDIO (massima priorità assoluta — override qualsiasi altra regola)
+    (r"\bstipendio\s+o\s+pensione\b", "STIPENDIO", 105),   # ← descrizione banca
     (r"\bstipendio\b", "STIPENDIO", 100),
     (r"\bstipendio\s+ardit\b", "STIPENDIO", 101),
     (r"\bstipendio\s+met\b", "STIPENDIO", 101),
+    (r"\bpensione\b", "STIPENDIO", 95),                     # bonifico pensione INPS
+    (r"\baccredito\s+stipendio\b", "STIPENDIO", 105),
+    (r"\bpagamento\s+stipendio\b", "STIPENDIO", 105),
 
     # CONTRIBUTO MOGLIE
     (r"\bfelisia\b", "CONTRIBUTO MOGLIE", 90),
     (r"\bfefi\b", "CONTRIBUTO MOGLIE", 90),
     (r"\bfefi\s+love\b", "CONTRIBUTO MOGLIE", 91),
+    (r"\bura\s+felisia\b|\bfelisia\s+ura\b", "CONTRIBUTO MOGLIE", 92),
 
     # NETFLIX
     (r"\bnetflix\b", "NETFLIX", 80),
@@ -71,6 +76,15 @@ BASE_RULES: list[tuple[str, str, int]] = [
     (r"\bautogril\b", "AUTOMOBILE", 72),
     (r"\bpezz[oi]\s+ricambio\b", "AUTOMOBILE", 80),
     (r"\bolio\s+macchina\b", "AUTOMOBILE", 80),
+    # Distributori / stazioni di servizio per nome
+    (r"\bdistributore\b", "AUTOMOBILE", 82),
+    (r"\bstazione\s+(?:di\s+)?servizio\b", "AUTOMOBILE", 85),
+    (r"\b(?:agip|esso|q8|tamoil|shell|totalerg|total|repsol|ip\b)", "AUTOMOBILE", 88),
+    (r"\bgoldengas\b", "AUTOMOBILE", 88),
+    (r"\benilive\b|\beni\b", "AUTOMOBILE", 85),
+    (r"\bparcheggio\b", "AUTOMOBILE", 75),
+    (r"\btelpass\b|\bautopass\b|\btelepass\b", "AUTOMOBILE", 85),
+    (r"\bpv\d{3,}", "AUTOMOBILE", 72),  # "PV1010" = punto vendita carburante
 
     # SPESA SPORT
     (r"\bcalcetto\b", "SPESA SPORT", 85),
@@ -78,6 +92,7 @@ BASE_RULES: list[tuple[str, str, int]] = [
     (r"\bdecathlon\b", "SPESA SPORT", 85),
     (r"\bpallone\b", "SPESA SPORT", 75),
     (r"\bcalcio\b", "SPESA SPORT", 72),
+    (r"\bpalestra\b|\bgym\b|\bfitness\b", "SPESA SPORT", 82),
 
     # SPESE ALIMENTARI
     (r"\bcoop\b", "SPESE ALIMENTARI", 85),
@@ -96,6 +111,22 @@ BASE_RULES: list[tuple[str, str, int]] = [
     (r"\bpranzo\b", "SPESE ALIMENTARI", 60),
     (r"\bmc\b|\bmcdonald\b", "SPESE ALIMENTARI", 78),
     (r"\bbar\b", "SPESE ALIMENTARI", 55),
+    # Supermercati italiani per nome
+    (r"\btodis\b", "SPESE ALIMENTARI", 88),
+    (r"\bcarrefour\b", "SPESE ALIMENTARI", 88),
+    (r"\bpenny\b", "SPESE ALIMENTARI", 85),
+    (r"\baldi\b", "SPESE ALIMENTARI", 85),
+    (r"\bmd\s+(?:discount|store|market)\b|\b(?<!\w)md(?!\w)\b", "SPESE ALIMENTARI", 80),
+    (r"\bbilla\b", "SPESE ALIMENTARI", 88),
+    (r"\bspar\b|\bdespar\b|\beurospar\b", "SPESE ALIMENTARI", 88),
+    (r"\bpam\b", "SPESE ALIMENTARI", 80),
+    (r"\bsimply\b", "SPESE ALIMENTARI", 82),
+    (r"\bicm\b", "SPESE ALIMENTARI", 80),
+    (r"\biperstore\b", "SPESE ALIMENTARI", 82),
+    (r"\bfood\b", "SPESE ALIMENTARI", 58),
+    (r"\bcaffe\b|\bcaffè\b", "SPESE ALIMENTARI", 62),
+    (r"\btrattoria\b|\bosteria\b|\bristorante\b", "SPESE ALIMENTARI", 72),
+    (r"\btavola\s+calda\b|\btake\s*away\b", "SPESE ALIMENTARI", 72),
 
     # USCITE E VACANZE
     (r"\bvacanz[ae]\b", "USCITE E VACANZE", 85),

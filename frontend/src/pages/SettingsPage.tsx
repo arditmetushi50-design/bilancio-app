@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAnni, getCategories, createCategory, deleteCategory, createBackup, listBackups, resetAllData, Category } from "../api/client";
+import { getAnni, getCategories, createCategory, updateCategory, deleteCategory, createBackup, listBackups, resetAllData, Category } from "../api/client";
 import { getCategoryMeta } from "../utils/categories";
 import { useDarkMode } from "../utils/darkMode";
 import { useToast } from "../components/Toast";
@@ -22,6 +22,11 @@ export default function SettingsPage() {
   const [newCatType, setNewCatType] = useState("SPESA_VARIABILE");
   const [addingCat, setAddingCat] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+
+  // Rename state
+  const [editingCatId, setEditingCatId] = useState<number | null>(null);
+  const [editingCatName, setEditingCatName] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // Reset state
   const [resetConfirm, setResetConfirm] = useState("");
@@ -74,6 +79,26 @@ export default function SettingsPage() {
       setCategories(cats);
     } catch (e: any) {
       showToast(e?.response?.data?.detail || "Errore nell'eliminazione", "error");
+    }
+  };
+
+  const startEdit = (cat: Category) => {
+    setEditingCatId(cat.id);
+    setEditingCatName(cat.name);
+    setTimeout(() => editInputRef.current?.select(), 50);
+  };
+
+  const handleRenameCategory = async (cat: Category) => {
+    const newName = editingCatName.trim().toUpperCase();
+    if (!newName || newName === cat.name) { setEditingCatId(null); return; }
+    try {
+      await updateCategory(cat.id, { name: newName });
+      showToast("Categoria rinominata!");
+      setEditingCatId(null);
+      const cats = await getCategories();
+      setCategories(cats);
+    } catch (e: any) {
+      showToast(e?.response?.data?.detail || "Errore nella rinomina", "error");
     }
   };
 
@@ -176,17 +201,45 @@ export default function SettingsPage() {
             <div className="space-y-1">
               {grouped[key as keyof typeof grouped].map((cat) => {
                 const meta = getCategoryMeta(cat.name);
+                const isEditing = editingCatId === cat.id;
                 return (
                   <div key={cat.id} className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
                     <span className="text-lg">{meta.icon}</span>
-                    <span className="text-sm font-medium text-gray-800 dark:text-gray-100 flex-1">{cat.name}</span>
+                    {isEditing ? (
+                      <input
+                        ref={editInputRef}
+                        className="flex-1 text-sm font-medium border border-blue-400 rounded px-2 py-0.5 outline-none dark:bg-gray-800 dark:text-gray-100 uppercase"
+                        value={editingCatName}
+                        onChange={e => setEditingCatName(e.target.value.toUpperCase())}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") handleRenameCategory(cat);
+                          if (e.key === "Escape") setEditingCatId(null);
+                        }}
+                        onBlur={() => handleRenameCategory(cat)}
+                        maxLength={40}
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-100 flex-1">{cat.name}</span>
+                    )}
+                    {!isEditing && (
+                      <button
+                        onClick={() => startEdit(cat)}
+                        className="text-xs text-gray-400 hover:text-blue-600 px-1.5 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        title="Rinomina categoria"
+                      >✏️</button>
+                    )}
+                    {isEditing && (
+                      <button
+                        onClick={() => setEditingCatId(null)}
+                        className="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-1"
+                        title="Annulla"
+                      >✕</button>
+                    )}
                     <button
                       onClick={() => handleDeleteCategory(cat)}
                       className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50"
                       title="Elimina categoria"
-                    >
-                      🗑
-                    </button>
+                    >🗑</button>
                   </div>
                 );
               })}
@@ -246,6 +299,7 @@ export default function SettingsPage() {
         <div className="grid grid-cols-2 gap-2">
           {[
             { to: "/budget", label: "Budget", icon: "💰", desc: "Limiti mensili" },
+            { to: "/recurring", label: "Ricorrenti", icon: "🔁", desc: "Movimenti mensili fissi" },
             { to: "/trend", label: "Trend", icon: "📉", desc: "Andamento spese" },
             { to: "/tabella", label: "Tabella", icon: "📊", desc: "Vista annuale" },
             { to: "/import", label: "Importa", icon: "📂", desc: "Da Excel" },
